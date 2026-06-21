@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password_hash String
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+  contacts      Contact[]
+
+  @@map("users")
+}
+
+model Contact {
+  id                 String   @id @default(uuid())
+  user_id            String
+  name               String
+  status             String   @default("在线")
+  word_bank          Json     @default("[]")
+  confirm_categories Json     @default("[]")
+  messages           Json     @default("[]")
+  reply_delay        Int      @default(30000)
+  avatar_color       String
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@map("contacts")
+}
