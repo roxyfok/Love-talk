@@ -43,6 +43,30 @@ async function refreshAccessToken(): Promise<string | null> {
   }
 }
 
+async function parseError(res: Response): Promise<string> {
+  const status = res.status;
+  try {
+    const data = await res.json();
+    if (data.error) return data.error;
+    if (data.message) return data.message;
+  } catch {
+    // Not JSON response
+  }
+  try {
+    const text = await res.text();
+    if (text) return `[HTTP ${status}] ${text.slice(0, 200)}`;
+  } catch {
+    // Cannot read body
+  }
+  if (status === 404) return '接口未找到 (404) — 后端服务可能未启动';
+  if (status === 401) return '未登录或登录已过期 (401)';
+  if (status === 403) return '权限不足 (403)';
+  if (status === 500) return '服务器内部错误 (500)';
+  if (status === 502) return '网关错误 (502) — 后端服务可能未启动';
+  if (status === 503) return '服务不可用 (503)';
+  return `请求失败 (HTTP ${status})`;
+}
+
 async function apiFetch<T = any>(
   path: string,
   options: RequestInit = {}
@@ -56,24 +80,32 @@ async function apiFetch<T = any>(
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(url, { ...options, headers, credentials: 'include' });
+  let res: Response;
+  try {
+    res = await fetch(url, { ...options, headers, credentials: 'include' });
+  } catch (err: any) {
+    throw new Error(
+      err.name === 'TypeError' && /failed to fetch/i.test(err.message)
+        ? '网络连接失败 — 请检查后端服务是否启动'
+        : `网络错误: ${err.message || err}`
+    );
+  }
 
   if (res.status === 401 && token) {
     const newToken = await refreshAccessToken();
     if (newToken) {
       headers['Authorization'] = `Bearer ${newToken}`;
-      const retryRes = await fetch(url, { ...options, headers, credentials: 'include' });
-      if (!retryRes.ok) {
-        const err = await retryRes.json().catch(() => ({ error: 'Request failed' }));
-        throw new Error(err.error || 'Request failed');
+      try {
+        res = await fetch(url, { ...options, headers, credentials: 'include' });
+      } catch (err: any) {
+        throw new Error(`重试失败: ${err.message || err}`);
       }
-      return retryRes.json();
     }
   }
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Request failed' }));
-    throw new Error(err.error || 'Request failed');
+    const errMsg = await parseError(res);
+    throw new Error(errMsg);
   }
 
   return res.json();

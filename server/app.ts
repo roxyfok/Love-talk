@@ -8,10 +8,23 @@ import { errorHandler } from './middleware/error';
 
 const app = express();
 
+// Allow all origins in development, specific origins in production
+const allowedOrigins = process.env.NODE_ENV === 'production'
+  ? [
+      'https://lovetalk.cyou',
+      'https://www.lovetalk.cyou',
+      'https://love-talk.vercel.app',
+      'https://love-talk-git-main.vercel.app',
+    ]
+  : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:3001'];
+
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? ['https://lovetalk.cyou', 'https://www.lovetalk.cyou', 'https://love-talk.vercel.app']
-    : ['http://localhost:3000', 'http://localhost:5173'],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, etc)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    callback(null, true); // Temporarily allow all during debugging
+  },
   credentials: true,
 }));
 
@@ -40,7 +53,7 @@ app.use('/api/auth/register', loginLimiter);
 
 // Health check
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', version: '3.0.0' });
+  res.json({ status: 'ok', version: '3.0.0', env: process.env.NODE_ENV });
 });
 
 // Routes

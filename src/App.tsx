@@ -1,10 +1,21 @@
-import { Routes, Route, Navigate } from 'react-router'
-import Home from './pages/Home'
-import Login from './pages/Login'
-import { useAuth } from './hooks/useAuth'
+import { useState, useCallback } from 'react';
+import { Routes, Route, Navigate } from 'react-router';
+import Home from './pages/Home';
+import Login from './pages/Login';
+import SplashScreen from './pages/SplashScreen';
+import { useAuth } from './hooks/useAuth';
 
 export default function App() {
   const { user, isLoading, login, register, logout } = useAuth();
+  const [showSplash, setShowSplash] = useState(true);
+
+  const handleSplashComplete = useCallback(() => {
+    setShowSplash(false);
+  }, []);
+
+  if (showSplash) {
+    return <SplashScreen onComplete={handleSplashComplete} />;
+  }
 
   if (isLoading) {
     return (
@@ -21,5 +32,5 @@ export default function App() {
       } />
       <Route path="/" element={<Home user={user} onLogout={logout} />} />
     </Routes>
-  )
+  );
 }
