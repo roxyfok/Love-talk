@@ -1,42 +1,34 @@
 import { useState, useEffect } from 'react';
+import { Heart, ArrowRight } from 'lucide-react';
 
 interface SplashScreenProps {
   onComplete: () => void;
 }
 
 export default function SplashScreen({ onComplete }: SplashScreenProps) {
-  const [phase, setPhase] = useState<'in' | 'hold' | 'out' | 'done'>('in');
+  const [visible, setVisible] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
+  // Fade in after mount
   useEffect(() => {
-    // Phase 1: fade in (0ms - 600ms)
-    const holdTimer = setTimeout(() => setPhase('hold'), 600);
-    // Phase 2: hold for 3 seconds then fade out
-    const outTimer = setTimeout(() => setPhase('out'), 3600);
-    // Phase 3: complete
-    const doneTimer = setTimeout(() => {
-      setPhase('done');
+    const timer = setTimeout(() => setVisible(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleEnter = () => {
+    if (leaving) return;
+    setLeaving(true);
+    setTimeout(() => {
       onComplete();
-    }, 4200);
-
-    return () => {
-      clearTimeout(holdTimer);
-      clearTimeout(outTimer);
-      clearTimeout(doneTimer);
-    };
-  }, [onComplete]);
-
-  if (phase === 'done') return null;
-
-  const opacity = phase === 'in' ? 0 : phase === 'hold' ? 1 : 0;
-  const visibility = phase === 'out' ? 'hidden' : 'visible';
+    }, 800);
+  };
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#1a1a2e]"
+      className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#0d0d15]"
       style={{
-        opacity,
-        visibility,
-        transition: 'opacity 0.6s ease-in-out, visibility 0.6s ease-in-out',
+        opacity: leaving ? 0 : visible ? 1 : 0,
+        transition: 'opacity 0.8s ease-in-out',
       }}
     >
       {/* Poster image */}
@@ -47,23 +39,34 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
           className="w-full h-full object-cover"
           draggable={false}
         />
-        {/* Subtle overlay gradient */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
+
+        {/* Bottom gradient overlay for button readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent pointer-events-none" />
       </div>
 
-      {/* Loading progress bar at bottom */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-48">
-        <div className="h-0.5 bg-white/20 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-white/80 rounded-full"
-            style={{
-              width: phase === 'in' ? '0%' : phase === 'hold' ? '100%' : '100%',
-              transition: phase === 'hold' ? 'width 3s linear' : 'none',
-            }}
-          />
+      {/* Enter button */}
+      <div className="absolute bottom-12 left-0 right-0 flex flex-col items-center gap-3">
+        {/* Brand text */}
+        <div className="flex items-center gap-1.5 text-white/50">
+          <Heart size={10} fill="currentColor" />
+          <span className="text-[10px] tracking-[0.3em] uppercase">Love Talk</span>
+          <Heart size={10} fill="currentColor" />
         </div>
-        <p className="text-center text-white/50 text-[10px] mt-2 tracking-widest uppercase">
-          LOVE TALK
+
+        {/* Enter button */}
+        <button
+          onClick={handleEnter}
+          className="group flex items-center gap-2 px-8 py-3 rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-white text-sm font-medium tracking-wide hover:bg-white/25 hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer"
+        >
+          进入网站
+          <ArrowRight
+            size={16}
+            className="transition-transform duration-300 group-hover:translate-x-1"
+          />
+        </button>
+
+        <p className="text-white/30 text-[10px] tracking-wider">
+          点击按钮开启私密对话
         </p>
       </div>
     </div>
