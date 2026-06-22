@@ -45,19 +45,20 @@ async function refreshAccessToken(): Promise<string | null> {
 
 async function parseError(res: Response): Promise<string> {
   const status = res.status;
+  let text = '';
   try {
-    const data = await res.json();
+    text = await res.text();
+  } catch {
+    // 无法读取响应体
+  }
+  try {
+    const data = JSON.parse(text);
     if (data.error) return data.error;
     if (data.message) return data.message;
   } catch {
-    // Not JSON response
+    // 不是 JSON
   }
-  try {
-    const text = await res.text();
-    if (text) return `[HTTP ${status}] ${text.slice(0, 200)}`;
-  } catch {
-    // Cannot read body
-  }
+  if (text) return `[HTTP ${status}] ${text.slice(0, 200)}`;
   if (status === 404) return '接口未找到 (404) — 后端服务可能未启动';
   if (status === 401) return '未登录或登录已过期 (401)';
   if (status === 403) return '权限不足 (403)';
@@ -84,10 +85,12 @@ async function apiFetch<T = any>(
   try {
     res = await fetch(url, { ...options, headers, credentials: 'include' });
   } catch (err: any) {
+    const msg = err?.message || '';
+    const isNetworkError = err instanceof TypeError || /fetch|network|connection|refused|unreachable|offline|abort|timeout|CORS/i.test(msg);
     throw new Error(
-      err.name === 'TypeError' && /failed to fetch/i.test(err.message)
-        ? '网络连接失败 — 请检查后端服务是否启动'
-        : `网络错误: ${err.message || err}`
+      isNetworkError
+        ? `网络连接失败 — 请检查后端服务是否启动 (${msg || '无法连接'})`
+        : `网络错误: ${msg || err}`
     );
   }
 
@@ -98,7 +101,7 @@ async function apiFetch<T = any>(
       try {
         res = await fetch(url, { ...options, headers, credentials: 'include' });
       } catch (err: any) {
-        throw new Error(`重试失败: ${err.message || err}`);
+        throw new Error(`重试失败: ${err?.message || err}`);
       }
     }
   }
